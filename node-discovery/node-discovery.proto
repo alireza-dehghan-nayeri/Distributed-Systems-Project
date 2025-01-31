@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package nodeDiscovery;
+
+service NodeRegister {
+    rpc RegisterNode (RegisterNodeRequest) returns (RegisterNodeResponse);
+}
+
+service GetNodes {
+    rpc GetNodes (GetNodesRequest) returns (GetNodesResponse);
+}
+
+message RegisterNodeRequest {
+    string name = 1;
+    float location = 2;
+    string cpu_arch = 3;
+    float memory = 4;
+}
+
+message RegisterNodeResponse {
+    string node_id = 1;
+}
+
+message GetNodesRequest {}
+
+message GetNodesResponse {
+    repeated Node nodes = 1;
+}
+
+message Node {
+    string node_id = 1;
+    string name = 2;
+    float location = 3;
+    string cpu_arch = 4;
+    float memory = 5;
+    string state = 6;
+}
