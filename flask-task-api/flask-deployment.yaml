@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flask-api
+  template:
+    metadata:
+      labels:
+        app: flask-api
+    spec:
+      containers:
+      - name: flask-api
+        image: alirezadehghannayeri/flask-task-api:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5001
+        env:
+        - name: DB_HOST
+          value: "postgresql"
+        - name: DB_NAME
+          value: "tasks_db"
+        - name: DB_USER
+          value: "admin"
+        - name: DB_PASS
+          value: "adminpassword"
