@@ -12,6 +12,7 @@ spec:
       labels:
         app: flask-api
     spec:
+      serviceAccountName: flask-api-sa
       containers:
       - name: flask-api
         image: alirezadehghannayeri/flask-task-api:latest

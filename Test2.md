@@ -2,13 +2,16 @@ First using kind i started the cluster with one control and 2 worker nodes.
 
 now i want to deploy the database, PostgreSQL.
 
+```
 helm install postgresql bitnami/postgresql \
   --set auth.username=admin \
   --set auth.password=adminpassword \
   --set auth.database=tasks_db
+```
 
 output:
 
+```
 NAME: postgresql
 LAST DEPLOYED: Mon Feb 10 19:30:23 2025
 NAMESPACE: default
@@ -54,16 +57,21 @@ WARNING: There are "resources" sections in the chart not set. Using "resourcesPr
   - primary.resources
   - readReplicas.resources
 +info https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+```
 
-
+```
 kubectl get pods
 NAME           READY   STATUS    RESTARTS   AGE
 postgresql-0   1/1     Running   0          43s
+```
 
+```
 kubectl get svc postgresql
 NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
 postgresql   ClusterIP   10.96.209.114   <none>        5432/TCP   53s
+```
 
+```
 kubectl get secret postgresql -o yaml
 apiVersion: v1
 data:
@@ -86,46 +94,68 @@ metadata:
   resourceVersion: "3984"
   uid: 5cd14e70-fe35-4af5-a076-9f979b71d96f
 type: Opaque
+```
 
+```
 echo "YWRtaW5wYXNzd29yZA==" | base64 --decode
+```
 
+```
 adminpassword%                                                           
+```
 
 test:
 
+```
 kubectl run postgresql-client --restart='Never' --image=bitnami/postgresql --command -- sleep infinity
+```
 
-
+```
 kubectl exec -it postgresql-client -- psql -h postgresql -U admin -d tasks_db
+```
 
-
+```
 SELECT version();
+```
 
+```
 version                                             
 -------------------------------------------------------------------------------------------------
  PostgreSQL 17.2 on aarch64-unknown-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit
 (1 row)
+```
 
-
+```
 kubectl delete pod postgresql-client
-pod "postgresql-client" deleted
+```
 
+```
+pod "postgresql-client" deleted
+```
+
+```
 kubectl run postgresql-client --rm --tty -i --restart='Never' --namespace default --image docker.io/bitnami/postgresql:17.2.0-debian-12-r8 --env="PGPASSWORD=$POSTGRES_PASSWORD" \
       --command -- psql --host postgresql -U admin -d tasks_db -p 5432
+```
 
 enter pass adminpassword
 
+```
 CREATE TABLE tasks (
     task_id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     state TEXT NOT NULL CHECK (state IN ('received', 'deployed', 'started', 'ended', 'crashed')),
     created_at TIMESTAMP DEFAULT NOW()
 );
+```
 
+```
 INSERT INTO tasks (name, state) VALUES ('Test Task', 'received');
+```
 
+```
 \q
-
+```
 
 after this i wrote the app.py flask task api
 tested it
@@ -135,59 +165,217 @@ created the deployment and service yaml
 logged in to docker hub using docker login command
 
 used this:
+```
 docker tag flask-task-api alirezadehghannayeri/flask-task-api:latest
+```
 to tag the image
 
 used this:
+```
 docker push alirezadehghannayeri/flask-task-api:latest
+```
 to push the imgae
 
 after this used this:
+```
 kubectl apply -f flask-deployment.yaml
+```
 
 tested it and it works
 i used port forwarding
+```
 kubectl port-forward svc/flask-api 5001:5001
+```
 
 to access the node and use curl
+
+```
 curl http://localhost:5001/
+```
 
 now i update the flask app
 bulild it again and push it:
 
+```
 docker build -t alirezadehghannayeri/flask-task-api:latest .
 docker push alirezadehghannayeri/flask-task-api:latest
+```
 
 then used :
+
+```
 kubectl delete deployment flask-api
+```
 
 and then:
+
+```
 kubectl apply -f flask-deployment.yaml
+```
 
 now:
 
+```
 kubectl get pods
+```
+
+```
 NAME                         READY   STATUS    RESTARTS   AGE
 flask-api-595bf669cc-p8882   1/1     Running   0          38s
 postgresql-0                 1/1     Running   0          45m
+```
 
 now this again:
+```
 kubectl port-forward svc/flask-api 5001:5001
-
+```
 
 then this:
+```
 curl -X POST "http://localhost:5001/tasks/create" -H "Content-Type: application/json" -d '{"name": "Test Task"}'
+```
 i got this:
+```
 {"message":"Task created","task_id":2}
+```
 
 then:
+```
 curl -X GET "http://localhost:5001/tasks/status/1"
+```
+```
 {"created_at":"Mon, 10 Feb 2025 17:40:18 GMT","name":"Test Task","state":"received","task_id":1}
+```
+```
+curl -X GET "http://localhost:5001/tasks/list"
+```
 
- curl -X GET "http://localhost:5001/tasks/list"
-
+```
 [{"created_at":"Mon, 10 Feb 2025 17:40:18 GMT","name":"Test Task","state":"received","task_id":1},{"created_at":"Mon, 10 Feb 2025 18:16:12 GMT","name":"Test Task","state":"received","task_id":2}]
+```
+
+modifued the flask api.
+```
+docker build -t alirezadehghannayeri/flask-task-api:latest .
+docker push alirezadehghannayeri/flask-task-api:latest
+```
+
+and also for sample-task
+```
+docker build -t alirezadehghannayeri/sample-task:latest .
+docker push alirezadehghannayeri/sample-task:latest
+```
+
+then
+
+```
+kubectl delete deployment flask-api
+```
+
+then
+
+```
+kubectl apply -f flask-deployment.yaml
+```
+
+after this:
+
+```
+curl -X POST "http://localhost:5001/tasks/create" -H "Content-Type: application/json" -d '{"name": "Test Task"}'
+
+```
+i got this:
+
+```
+127.0.0.1 - - [11/Feb/2025 12:03:47] "GET /favicon.ico HTTP/1.1" 404 -
+[2025-02-11 12:04:18,469] ERROR in app: Exception on /tasks/create [POST]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.9/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "/usr/local/lib/python3.9/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "/usr/local/lib/python3.9/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "/usr/local/lib/python3.9/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+  File "/app/app.py", line 97, in create_task
+    deploy_task(new_task.task_id)
+  File "/app/app.py", line 65, in deploy_task
+    k8s_client.create_namespaced_deployment(namespace="default", body=deployment)
+  File "/usr/local/lib/python3.9/site-packages/kubernetes/client/api/apps_v1_api.py", line 353, in create_namespaced_deployment
+    return self.create_namespaced_deployment_with_http_info(namespace, body, **kwargs)  # noqa: E501
+  File "/usr/local/lib/python3.9/site-packages/kubernetes/client/api/apps_v1_api.py", line 452, in create_namespaced_deployment_with_http_info
+    return self.api_client.call_api(
+  File "/usr/local/lib/python3.9/site-packages/kubernetes/client/api_client.py", line 348, in call_api
+    return self.__call_api(resource_path, method,
+  File "/usr/local/lib/python3.9/site-packages/kubernetes/client/api_client.py", line 180, in __call_api
+    response_data = self.request(
+  File "/usr/local/lib/python3.9/site-packages/kubernetes/client/api_client.py", line 391, in request
+    return self.rest_client.POST(url,
+  File "/usr/local/lib/python3.9/site-packages/kubernetes/client/rest.py", line 279, in POST
+    return self.request("POST", url,
+  File "/usr/local/lib/python3.9/site-packages/kubernetes/client/rest.py", line 238, in request
+    raise ApiException(http_resp=r)
+kubernetes.client.exceptions.ApiException: (403)
+Reason: Forbidden
+HTTP response headers: HTTPHeaderDict({'Audit-Id': '812212d0-cd69-4d9a-87c0-43d4d3276156', 'Cache-Control': 'no-cache, private', 'Content-Type': 'application/json', 'X-Content-Type-Options': 'nosniff', 'X-Kubernetes-Pf-Flowschema-Uid': 'd8bce956-ac66-4c47-8a94-6d0e9672a0d4', 'X-Kubernetes-Pf-Prioritylevel-Uid': '4ac2c2e2-cf02-4479-a744-eabeedb469f2', 'Date': 'Tue, 11 Feb 2025 12:04:18 GMT', 'Content-Length': '329'})
+HTTP response body: {"kind":"Status","apiVersion":"v1","metadata":{},"status":"Failure","message":"deployments.apps is forbidden: User \"system:serviceaccount:default:default\" cannot create resource \"deployments\" in API group \"apps\" in the namespace \"default\"","reason":"Forbidden","details":{"group":"apps","kind":"deployments"},"code":403}
+
+```
+
+this indicates the flask api app does not have the permission to deploy deployments!
+
+so we need to give it the permission to do so i created the service-aacount.yaml, role.yaml, role-binding.yaml
+
+and also added serviceAccountName: flask-api-sa to the flask-deployment.yaml
+
+then apply them using;
+
+```
+kubectl apply -f service-account.yaml
+
+```
+
+```
+kubectl apply -f role.yaml
+
+```
+
+```
+kubectl apply -f role-binding.yaml
+
+```
+
+and again:
+
+```
+kubectl delete deployment flask-api
+kubectl apply -f flask-deployment.yaml
+
+```
+
+now test it with:
+```
+curl -X POST "http://localhost:5001/tasks/create" -H "Content-Type: application/json" -d '{"name": "Test Task"}'
+
+```
+
+to see the logs i used:
+
+```
+kubectl logs -l app=flask-api --follow
+```
 
 
+--------------
+
+## 5. TODO List:
+- [x] Sample task implementation
+- [x] Sample task Dockerfile
+- [ ] Push the sample task Docker image to Docker Hub
+- [x] `requirements.txt` for each Python service and update Dockerfile to use it
+- [x] Flask API should check task execution status from Kubernetes
+- [x] Add deployment logic to the Flask API using Kubernetes
+- [ ] Automate updates in deployment pipeline
 
 
