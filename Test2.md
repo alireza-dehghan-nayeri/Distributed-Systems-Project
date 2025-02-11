@@ -1,5 +1,9 @@
 First using kind i started the cluster with one control and 2 worker nodes.
 
+```
+kind create cluster --config task-cluster.yaml --name task-cluster
+```
+
 now i want to deploy the database, PostgreSQL.
 
 ```
@@ -366,6 +370,122 @@ to see the logs i used:
 kubectl logs -l app=flask-api --follow
 ```
 
+
+now that using a request a deployment(task representative) is deployed on kubernetes, i want to add Grafana and Prometheus.
+
+first i need to deploy them into the cluster using helm:
+
+```
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+```
+
+```
+helm install prometheus prometheus-community/kube-prometheus-stack \
+  --set prometheus.service.type=LoadBalancer \
+  --set grafana.enabled=true \
+  --set grafana.service.type=LoadBalancer \
+  --set grafana.grafana.ini.server.root_url='http://localhost:3000' \
+  --set grafana.grafana.ini.server.serve_from_sub_path=true
+```
+
+```
+NAME: prometheus
+LAST DEPLOYED: Tue Feb 11 17:30:37 2025
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+NOTES:
+kube-prometheus-stack has been installed. Check its status by running:
+  kubectl --namespace default get pods -l "release=prometheus"
+
+Get Grafana 'admin' user password by running:
+
+  kubectl --namespace default get secrets prometheus-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo
+
+Access Grafana local instance:
+
+  export POD_NAME=$(kubectl --namespace default get pod -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=prometheus" -oname)
+  kubectl --namespace default port-forward $POD_NAME 3000
+
+Visit https://github.com/prometheus-operator/kube-prometheus for instructions on how to create & configure Alertmanager and Prometheus instances using the Operator.
+```
+
+```
+kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090:9090
+```
+```
+export POD_NAME=$(kubectl --namespace default get pod -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=prometheus" -oname)
+```
+
+```
+kubectl --namespace default port-forward $POD_NAME 3000
+```
+
+now from :
+```
+http://localhost:9090
+http://localhost:3000
+```
+
+with:
+
+```
+Grafana Login: admin / prom-operator
+```
+
+USE FIREFOX FOR GRAFANA!!!
+
+i can see the metrics from kubernetes in grafana and prometheus!
+
+next step is to add metrics to the app.py
+
+before that i want to clean everything so:
+
+```
+helm uninstall prometheus
+```
+
+```
+helm uninstall postgresql
+```
+
+```
+kubectl get nodes      
+NAME                         STATUS   ROLES           AGE   VERSION
+task-cluster-control-plane   Ready    control-plane   23h   v1.32.0
+task-cluster-worker          Ready    <none>          23h   v1.32.0
+task-cluster-worker2         Ready    <none>          23h   v1.32.0
+```
+
+```
+kubectl get pods
+No resources found in default namespace.
+```
+
+```
+kubectl get deployments
+No resources found in default namespace.
+```
+
+```
+kind get clusters
+task-cluster
+```
+
+to start:
+
+- create the kind cluster
+- install postgresql
+- configure postgresql
+- build and push the images
+- forward ports
+- run prometheus and grafana
+- forward ports
+- run the deployment
+- test it using curls
+- check grafana
 
 --------------
 

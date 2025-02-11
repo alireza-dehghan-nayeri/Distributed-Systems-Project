@@ -1,6 +1,9 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_sqlalchemy import SQLAlchemy
 from kubernetes import client, config
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter
+
+REQUEST_COUNT = Counter('flask_request_count', 'Total number of requests')
 
 
 app = Flask(__name__)
@@ -77,6 +80,15 @@ class Task(db.Model):
     name = db.Column(db.String, nullable=False)
     state = db.Column(db.String, nullable=False, default="received")
     created_at = db.Column(db.DateTime, default=db.func.now())
+    
+@app.before_request
+def before_request():
+    REQUEST_COUNT.inc()
+
+
+@app.route('/metrics')
+def metrics():
+    return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
 # Home Route
 @app.route("/", methods=["GET"])
