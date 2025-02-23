@@ -43,7 +43,7 @@ logger = structlog.get_logger()
 
 def generate_kubernetes_deployment_yaml(function_id):
     """Generate Kubernetes Deployment YAML that passes function_id as an environment variable."""
-    deployment_name = f"func-deployment-{function_id[:8]}"
+    deployment_name = f"executor-{function_id[:8]}"
 
     deployment_yaml = f"""
     apiVersion: apps/v1
@@ -67,7 +67,19 @@ def generate_kubernetes_deployment_yaml(function_id):
               env:
                 - name: FUNCTION_ID
                   value: "{function_id}"
-          restartPolicy: Always
+                - name: DATABASE_URL
+                  value: "{DATABASE_URL}"
+                - name: KAFKA_BROKER
+                  value: "{KAFKA_BROKER}"
+              ports:
+                - containerPort: 8000
+              resources:
+                requests:
+                  memory: "512Mi"
+                  cpu: "250m"
+                limits:
+                  memory: "1Gi"
+                  cpu: "500m"
     """
 
     return deployment_yaml

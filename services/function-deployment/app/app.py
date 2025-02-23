@@ -113,6 +113,7 @@ def update_function_state(function_id, new_state):
 
 def deploy_kubernetes_deployment(yaml_content):
     """Deploy a Kubernetes Deployment using the Kubernetes API."""
+    # todo: deploy the predefined function-executor-service.yaml and function-executor-servicemonitor to enable metrics
     logger.info("Deploying function in Kubernetes")
 
     try:
