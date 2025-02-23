@@ -16,11 +16,11 @@ spec:
                 name: function-registration-service
                 port:
                   number: 8000
-          - path: /function-preparation
+          - path: /function-trigger
             pathType: Prefix
             backend:
               service:
-                name: function-preparation-service
+                name: function-trigger-service
                 port:
                   number: 8000
           - path: /logs
