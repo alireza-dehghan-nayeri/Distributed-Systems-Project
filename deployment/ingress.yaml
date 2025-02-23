@@ -16,13 +16,13 @@ spec:
                 name: function-registration-service
                 port:
                   number: 8000
-          - path: /function-execute
+          - path: /function-preparation
             pathType: Prefix
             backend:
               service:
-                name: function-execution-service
+                name: function-preparation-service
                 port:
-                  number: 8001
+                  number: 8000
           - path: /logs
             pathType: Prefix
             backend:
