@@ -23,6 +23,13 @@ spec:
                 name: function-trigger-service
                 port:
                   number: 8000
+          - path: /function-state
+            pathType: Prefix
+            backend:
+              service:
+                name: function-state-service
+                port:
+                  number: 8000
           - path: /logs
             pathType: Prefix
             backend:

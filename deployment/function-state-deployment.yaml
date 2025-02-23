@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: function-state
+  labels:
+    app: function-state
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: function-state
+  template:
+    metadata:
+      labels:
+        app: function-state
+    spec:
+      containers:
+        - name: function-state
+          image: alirezadehghannayeri/function-state:latest  # Replace with your Docker image name
+          imagePullPolicy: IfNotPresent  # Use "IfNotPresent" if pulling from a registry
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: global-config
+                  key: DATABASE_URL
+            - name: KAFKA_BROKER
+              valueFrom:
+                configMapKeyRef:
+                  name: global-config
+                  key: KAFKA_BROKER
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
