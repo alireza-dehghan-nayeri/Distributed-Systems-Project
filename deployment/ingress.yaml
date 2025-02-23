@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kubelesspy-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - host: kubelesspy.local
+      http:
+        paths:
+          - path: /function-registration
+            pathType: Prefix
+            backend:
+              service:
+                name: function-registration-service
+                port:
+                  number: 8000
+          - path: /function-execute
+            pathType: Prefix
+            backend:
+              service:
+                name: function-execution-service
+                port:
+                  number: 8001
+          - path: /logs
+            pathType: Prefix
+            backend:
+              service:
+                name: loki-service
+                port:
+                  number: 3100
