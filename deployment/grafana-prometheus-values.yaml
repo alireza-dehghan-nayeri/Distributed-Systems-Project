@@ -1,0 +1,38 @@
+# Reduce Prometheus resource usage for local development
+prometheus:
+  prometheusSpec:
+    retention: "1h"  # Store only 6 hours of data to save memory
+    scrapeInterval: "15s"  # Scrape metrics every 15 seconds
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+  persistence:
+    enabled: false
+
+# Reduce Alertmanager resource usage (not needed for local dev)
+alertmanager:
+  enabled: false
+
+# Reduce Grafana resource usage
+grafana:
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "250m"
+  adminPassword: "admin"  # Default login is admin/admin
+  service:
+    type: NodePort  # Expose Grafana using a NodePort
+  persistence:
+    enabled: false
+
+# Expose Prometheus via NodePort for local access
+prometheusOperator:
+  admissionWebhooks:
+    enabled: false

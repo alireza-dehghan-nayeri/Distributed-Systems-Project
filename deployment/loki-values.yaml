@@ -1,0 +1,38 @@
+loki:
+  enabled: true
+  isDefault: true
+
+# Reduce resource usage for local setup
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "200m"
+
+# Storage (in-memory for local development)
+persistence:
+  enabled: false
+
+# Service exposure
+service:
+  type: ClusterIP
+
+# Disable memberlist (since it's a single-node Loki setup)
+lokiConfig:
+  auth_enabled: false
+  ingester:
+    lifecycler:
+      ring:
+        kvstore:
+          store: inmemory
+  schema_config:
+    configs:
+      - from: 2022-01-01
+        store: boltdb-shipper
+        object_store: filesystem
+        schema: v11
+        index:
+          prefix: index_
+          period: 24h
