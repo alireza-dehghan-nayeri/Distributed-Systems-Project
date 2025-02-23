@@ -82,10 +82,8 @@ def deploy_kubernetes_deployment(yaml_content):
     try:
         api.create_namespaced_deployment(namespace=KUBE_NAMESPACE, body=deployment_spec)
         print("Deployment successfully created.")
-        return "Success", None
     except Exception as e:
         print(f"Deployment failed: {str(e)}")
-        return None, str(e)
 
 
 def process_function(function_id):
@@ -93,32 +91,23 @@ def process_function(function_id):
 
     state = fetch_function_state(function_id)
 
-    update_function_state(function_id, "deployment-received")
-
-    if state == "deployed":
-        try:
-            producer.send(KAFKA_PRODUCER_TOPIC, {"id": function_id})
-        except Exception as e:
-            print(f"Kafka unavailable. {str(e)}")
-
-    elif state == "registered":
+    if state == "deployable":
 
         # Fetch YAML from CockroachDB
         deployment_yaml = fetch_function_yaml(function_id)
         if not deployment_yaml:
             print(f"Deployment YAML not found for function ID {function_id}")
-            update_function_state(function_id, "deployment-failed")
             return
 
         # Deploy Kubernetes Deployment
-        stdout, stderr = deploy_kubernetes_deployment(deployment_yaml)
+        deploy_kubernetes_deployment(deployment_yaml)
 
-        if stderr:
-            print(f"Deployment failed: {stderr}")
-            update_function_state(function_id, "deployment-failed")
-        else:
-            print(f"Deployment succeeded: {stdout}")
-            update_function_state(function_id, "deployed")
+        update_function_state(function_id, "deployed")
+
+        try:
+            producer.send(KAFKA_PRODUCER_TOPIC, {"id": function_id})
+        except Exception as e:
+            print(f"Kafka unavailable. {str(e)}")
 
 
 def kafka_listener():

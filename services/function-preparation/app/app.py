@@ -25,16 +25,6 @@ def get_db():
     return psycopg2.connect(DATABASE_URL)
 
 
-def update_function_state(function_id, state):
-    """Update function state in CockroachDB synchronously."""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE functions SET state = %s WHERE id = %s", (state, function_id))
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-
 def generate_kubernetes_deployment_yaml(function_id):
     """Generate Kubernetes Deployment YAML that passes function_id as an environment variable."""
     deployment_name = f"func-deployment-{function_id[:8]}"
@@ -69,32 +59,25 @@ def generate_kubernetes_deployment_yaml(function_id):
 
 def process_function(function_id):
     """Process function by creating the Kubernetes job."""
-    update_function_state(function_id, "preparation-received")
+
+    # Generate Kubernetes Job YAML
+    job_yaml = generate_kubernetes_deployment_yaml(function_id)
 
     try:
-        # Generate Kubernetes Job YAML
-        job_yaml = generate_kubernetes_deployment_yaml(function_id)
-
-        try:
-            conn = get_db()
-            cursor = conn.cursor()
-            cursor.execute("""
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("""
                 UPDATE functions 
                 SET deployment_yaml = %s, state = %s 
                 WHERE id = %s
-            """, (job_yaml, "registered", function_id))
-            conn.commit()
-            cursor.close()
-            conn.close()
-        except Exception as e:
-            print(f"Error inserting YAML into DB: {str(e)}")
-            update_function_state(function_id, "preparation-failed")
-
-        print(f"Successfully registered function: {function_id}")
-
+            """, (job_yaml, "deployable", function_id))
+        conn.commit()
+        cursor.close()
+        conn.close()
     except Exception as e:
-        print(f"Error processing function {function_id}: {str(e)}")
-        update_function_state(function_id, "preparation-failed")
+        print(f"Error inserting YAML into DB: {str(e)}")
+
+    print(f"Successfully prepared function: {function_id}")
 
 
 def kafka_listener():

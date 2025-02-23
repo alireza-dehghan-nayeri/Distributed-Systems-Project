@@ -1,5 +1,7 @@
 import json
 import os
+import subprocess
+
 import psycopg2
 import importlib.util
 from kafka import KafkaConsumer
@@ -39,18 +41,46 @@ def fetch_function_code():
     return None, None
 
 
+def install_requirements(requirements):
+    """Install Python dependencies dynamically."""
+    if not requirements:
+        print("No additional dependencies to install.")
+        return
+
+    requirements_file = "/app/requirements.txt"
+
+    with open(requirements_file, "w") as f:
+        f.write(requirements)
+
+    print("Installing dependencies...")
+    try:
+        subprocess.run(["pip", "install", "-r", requirements_file], check=True)
+        print("Dependencies installed successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error installing dependencies: {e}")
+        return False
+
+    return True
+
 def execute_function():
-    """Fetch function code and execute it dynamically."""
+    """Fetch function code, install dependencies, and execute it dynamically."""
     function_code, function_requirements = fetch_function_code()
 
     if not function_code:
         print("Error: Function code not found in database!")
         return
 
+    # Install dependencies first
+    if not install_requirements(function_requirements):
+        print("Dependency installation failed. Aborting execution.")
+        return
+
+    # Save function code to a file
     function_file = "/app/handler.py"
     with open(function_file, "w") as f:
         f.write(function_code)
 
+    # Load and execute the function dynamically
     spec = importlib.util.spec_from_file_location("handler", function_file)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -60,7 +90,6 @@ def execute_function():
         module.handler()
     else:
         print("Error: handler() function not found!")
-
 
 def kafka_listener():
     """Listen to Kafka and process functions."""

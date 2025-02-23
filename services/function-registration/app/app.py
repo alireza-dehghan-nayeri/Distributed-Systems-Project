@@ -52,7 +52,7 @@ def register_function(payload: FunctionPayload):
         cur.execute("""
             INSERT INTO functions (name, state, code, requirements)
             VALUES (%s, %s, %s, %s) RETURNING id
-        """, (payload.name, "registration-received", payload.code, payload.requirements))
+        """, (payload.name, "registered", payload.code, payload.requirements))
         function_id = cur.fetchone()[0]
         conn.commit()
         cur.close()
@@ -64,29 +64,7 @@ def register_function(payload: FunctionPayload):
     try:
         producer.send(KAFKA_TOPIC, {"id": function_id})
     except Exception as e:
-        try:
-            conn = get_db()
-            cur = conn.cursor()
-            cur.execute("UPDATE functions SET state = 'registration-preparation-failed' WHERE id = %s", (function_id,))
-            conn.commit()
-            cur.close()
-            conn.close()
-        except Exception as db_error:
-            raise HTTPException(status_code=500,
-                                detail=f"Both Kafka and DB failed: Kafka Error: {str(e)}, DB Error: {str(db_error)}")
-
         raise HTTPException(status_code=500, detail=f"Kafka unavailable. Function failed. Error: {str(e)}")
-
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("UPDATE functions SET state = 'registration-preparation-queued' WHERE id = %s",
-                    (function_id,))
-        conn.commit()
-        cur.close()
-        conn.close()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Function registered but DB update to 'queued' failed: {str(e)}")
 
     return {"id": function_id, "message": "Function registered an queued successfully."}
 

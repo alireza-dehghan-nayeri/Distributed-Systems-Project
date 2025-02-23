@@ -44,7 +44,7 @@ def check_function_status(function_id=None, function_name=None):
 
     function_id, function_name, state = result
 
-    if state not in ["registered", "deployed"]:
+    if state not in ["deployable", "deployed"]:
         raise HTTPException(status_code=400, detail=f"Function is not in a deployable state. Current state: {state}")
 
     return function_id, function_name, state
@@ -74,28 +74,20 @@ def trigger_function(payload: FunctionTriggerRequest):
 
     function_id, function_name, state = check_function_status(payload.function_id, payload.function_name)
 
-    update_function_state(function_id, "trigger-received")
-
     if state == "deployed":
         try:
             producer.send(KAFKA_EXECUTION_TOPIC, {"id": function_id})
         except KafkaTimeoutError as e:
-            update_function_state(function_id, "trigger-execution-failed")
             raise HTTPException(status_code=500, detail=f"Kafka error: {str(e)}")
-
-        update_function_state(function_id, "trigger-execution-queued")
 
         return {"message": "Function execution triggered successfully.", "function_id": function_id}
 
 
-    if state == "registered":
+    if state == "deployable":
         try:
             producer.send(KAFKA_DEPLOYMENT_TOPIC, {"id": function_id})
         except KafkaTimeoutError as e:
-            update_function_state(function_id, "trigger-deployment-failed")
             raise HTTPException(status_code=500, detail=f"Kafka error: {str(e)}")
-
-        update_function_state(function_id, "trigger-deployment-queued")
 
         return {"message": "Function deployment/execution triggered successfully.", "function_id": function_id}
 
