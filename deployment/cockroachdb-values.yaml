@@ -1,19 +1,19 @@
-# Single-node deployment for local MacBook
+# Single-node deployment for local MacBook (No High Availability)
 statefulset:
   replicas: 1
   resources:
     requests:
-      cpu: "250m"
-      memory: "512Mi"
+      cpu: "100m"       # Reduce CPU request
+      memory: "256Mi"   # Reduce memory request
     limits:
-      cpu: "500m"
-      memory: "1Gi"
+      cpu: "250m"       # Reduce CPU limit
+      memory: "512Mi"   # Reduce memory limit
 
-# Reduced storage size for local testing
+# Minimal storage size for local development
 storage:
   persistentVolume:
     enabled: true
-    size: 2Gi
+    size: 1Gi  # Reduce storage to 1Gi (less disk usage)
     storageClass: "standard"
 
 # Change service type for easier local access
@@ -23,12 +23,12 @@ service:
   internal:
     type: ClusterIP
 
-# Memory settings (1/4th of allocated memory)
+# Reduce memory allocation for SQL execution & caching
 conf:
-  cache: "256Mi"           # 1/4 of 1Gi
-  max-sql-memory: "256Mi"  # 1/4 of 1Gi
+  cache: "128Mi"           # Reduce cache size to save memory
+  max-sql-memory: "128Mi"  # Reduce SQL memory usage
 
-# Disable TLS for local development
+# Disable TLS for local development (unsafe for production)
 tls:
   enabled: false
 
