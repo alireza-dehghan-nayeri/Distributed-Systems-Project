@@ -1,8 +1,8 @@
 -- Create Database
-CREATE DATABASE IF NOT EXISTS my_database;
+CREATE DATABASE IF NOT EXISTS kubelesspy_database;
 
 -- Use the new database
-USE my_database;
+USE kubelesspy_database;
 
 -- Create Tables
 CREATE TABLE IF NOT EXISTS functions (
