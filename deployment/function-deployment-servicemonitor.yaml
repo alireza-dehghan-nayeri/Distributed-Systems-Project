@@ -1,0 +1,14 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: function-deployment-monitor
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: function-deployment  # Must match the label in your Service
+  endpoints:
+    - port: http  # Must match the port name in your Service
+      path: /metrics
+      interval: 15s  # Scrape metrics every 15 seconds
