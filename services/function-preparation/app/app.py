@@ -1,16 +1,20 @@
 import json
 import psycopg2
+import os
+import time
+import structlog
 from kafka import KafkaConsumer
+from prometheus_client import Counter, Histogram
 
 # Kubernetes Namespace
-KUBE_NAMESPACE = "default"
+KUBE_NAMESPACE = os.getenv("KUBE_NAMESPACE", "default")
 
 # CockroachDB Connection
-DATABASE_URL = "postgresql://your_user:your_password@cockroachdb-service:26257/your_database"
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://your_user:your_password@cockroachdb-service:26257/your_database")
 
 # Kafka Configuration
-KAFKA_BROKER = "kafka-service:9092"
-KAFKA_TOPIC = "function-preparation"
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka-service:9092")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "function-preparation")
 
 # Initialize Kafka Consumer
 consumer = KafkaConsumer(
@@ -19,11 +23,23 @@ consumer = KafkaConsumer(
     value_deserializer=lambda x: json.loads(x.decode("utf-8"))
 )
 
-
 def get_db():
     """Get a synchronous database connection."""
     return psycopg2.connect(DATABASE_URL)
 
+# Prometheus Metrics
+KAFKA_MESSAGES_PROCESSED = Counter("kafka_messages_processed_total", "Total Kafka messages processed")
+DB_ERRORS = Counter("database_errors_total", "Total database errors")
+FUNCTION_PROCESSING_TIME = Histogram("function_processing_duration_seconds", "Time spent processing functions")
+
+# JSON Logger (Loki Compatible)
+structlog.configure(
+    processors=[
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.JSONRenderer()
+    ]
+)
+logger = structlog.get_logger()
 
 def generate_kubernetes_deployment_yaml(function_id):
     """Generate Kubernetes Deployment YAML that passes function_id as an environment variable."""
@@ -56,9 +72,11 @@ def generate_kubernetes_deployment_yaml(function_id):
 
     return deployment_yaml
 
-
 def process_function(function_id):
     """Process function by creating the Kubernetes job."""
+    logger.info("Processing function", function_id=function_id)
+
+    start_time = time.time()
 
     # Generate Kubernetes Job YAML
     job_yaml = generate_kubernetes_deployment_yaml(function_id)
@@ -74,16 +92,24 @@ def process_function(function_id):
         conn.commit()
         cursor.close()
         conn.close()
+        logger.info("Function updated in DB", function_id=function_id, state="deployable")
     except Exception as e:
-        print(f"Error inserting YAML into DB: {str(e)}")
+        DB_ERRORS.inc()
+        logger.error("Database error", error=str(e))
+        return
 
-    print(f"Successfully prepared function: {function_id}")
+    processing_time = time.time() - start_time
+    FUNCTION_PROCESSING_TIME.observe(processing_time)
 
+    logger.info("Function processing complete", function_id=function_id, duration=processing_time)
 
 def kafka_listener():
     """Listen to Kafka and process functions."""
-    print("Function Preparation Service is running...")
+    logger.info("Function Preparation Service is running...")
+
     for msg in consumer:
         function_id = msg.value["id"]
-        print(f"Received function ID from Kafka: {function_id}")
+        logger.info("Received function ID from Kafka", function_id=function_id)
+
+        KAFKA_MESSAGES_PROCESSED.inc()
         process_function(function_id)

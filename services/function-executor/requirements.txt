@@ -1,2 +1,4 @@
 asyncpg
 kafka-python
+prometheus_client
+structlog

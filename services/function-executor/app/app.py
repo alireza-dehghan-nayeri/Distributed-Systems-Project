@@ -1,17 +1,17 @@
 import json
 import os
 import subprocess
-
+import time
 import psycopg2
 import importlib.util
+import structlog
 from kafka import KafkaConsumer
+from prometheus_client import Counter, Histogram
 
-# CockroachDB Connection
-DATABASE_URL = "postgresql://your_user:your_password@cockroachdb-service:26257/your_database"
-
-# Kafka Configuration
-KAFKA_BROKER = "kafka-service:9092"
-KAFKA_TOPIC = "function-execution"
+# Environment Variables
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://your_user:your_password@cockroachdb-service:26257/your_database")
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka-service:9092")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "function-execution")
 FUNCTION_ID = os.getenv("FUNCTION_ID")
 
 # Initialize Kafka Consumer
@@ -21,58 +21,84 @@ consumer = KafkaConsumer(
     value_deserializer=lambda x: json.loads(x.decode("utf-8"))
 )
 
-
 def get_db():
     """Get a synchronous database connection."""
     return psycopg2.connect(DATABASE_URL)
 
+# Prometheus Metrics
+KAFKA_MESSAGES_PROCESSED = Counter("kafka_messages_processed_total", "Total Kafka messages processed")
+DB_ERRORS = Counter("database_errors_total", "Total database errors")
+DEPENDENCY_INSTALL_TIME = Histogram("dependency_installation_duration_seconds", "Time taken to install dependencies")
+FUNCTION_EXECUTION_TIME = Histogram("function_execution_duration_seconds", "Time taken to execute the function")
+
+# JSON Logger (Loki Compatible)
+structlog.configure(
+    processors=[
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.JSONRenderer()
+    ]
+)
+logger = structlog.get_logger()
 
 def fetch_function_code():
     """Fetch function code and dependencies from CockroachDB synchronously."""
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT code, requirements FROM functions WHERE id = %s", (FUNCTION_ID,))
-    result = cursor.fetchone()
-    cursor.close()
-    conn.close()
+    logger.info("Fetching function code", function_id=FUNCTION_ID)
 
-    if result:
-        return result[0], result[1]  # function_code, function_requirements
-    return None, None
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT code, requirements FROM functions WHERE id = %s", (FUNCTION_ID,))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
 
+        if result:
+            logger.info("Function code retrieved", function_id=FUNCTION_ID)
+            return result[0], result[1]  # function_code, function_requirements
+
+        logger.warning("Function code not found in database", function_id=FUNCTION_ID)
+        return None, None
+
+    except Exception as e:
+        DB_ERRORS.inc()
+        logger.error("Database error fetching function code", function_id=FUNCTION_ID, error=str(e))
+        return None, None
 
 def install_requirements(requirements):
     """Install Python dependencies dynamically."""
     if not requirements:
-        print("No additional dependencies to install.")
-        return
+        logger.info("No additional dependencies to install", function_id=FUNCTION_ID)
+        return True
 
     requirements_file = "/app/requirements.txt"
-
     with open(requirements_file, "w") as f:
         f.write(requirements)
 
-    print("Installing dependencies...")
+    logger.info("Installing dependencies", function_id=FUNCTION_ID)
+
+    start_time = time.time()
     try:
         subprocess.run(["pip", "install", "-r", requirements_file], check=True)
-        print("Dependencies installed successfully.")
+        install_time = time.time() - start_time
+        DEPENDENCY_INSTALL_TIME.observe(install_time)
+        logger.info("Dependencies installed successfully", function_id=FUNCTION_ID, duration=install_time)
+        return True
     except subprocess.CalledProcessError as e:
-        print(f"Error installing dependencies: {e}")
+        logger.error("Error installing dependencies", function_id=FUNCTION_ID, error=str(e))
         return False
-
-    return True
 
 def execute_function():
     """Fetch function code, install dependencies, and execute it dynamically."""
-    function_code, function_requirements = fetch_function_code()
+    logger.info("Executing function", function_id=FUNCTION_ID)
 
+    function_code, function_requirements = fetch_function_code()
     if not function_code:
-        print("Error: Function code not found in database!")
+        logger.error("Error: Function code not found in database!", function_id=FUNCTION_ID)
         return
 
     # Install dependencies first
     if not install_requirements(function_requirements):
-        print("Dependency installation failed. Aborting execution.")
+        logger.error("Dependency installation failed. Aborting execution.", function_id=FUNCTION_ID)
         return
 
     # Save function code to a file
@@ -85,16 +111,22 @@ def execute_function():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
+    start_time = time.time()
     if hasattr(module, "handler"):
-        print("Executing handler()...")
+        logger.info("Executing handler() function", function_id=FUNCTION_ID)
         module.handler()
+        execution_time = time.time() - start_time
+        FUNCTION_EXECUTION_TIME.observe(execution_time)
+        logger.info("Function executed successfully", function_id=FUNCTION_ID, duration=execution_time)
     else:
-        print("Error: handler() function not found!")
+        logger.error("Error: handler() function not found!", function_id=FUNCTION_ID)
 
 def kafka_listener():
     """Listen to Kafka and process functions."""
-    print("Function Preparation Service is running...")
+    logger.info("Function Execution Service is running...")
+
     for msg in consumer:
         if msg.value["id"] == FUNCTION_ID:
+            KAFKA_MESSAGES_PROCESSED.inc()
+            logger.info("Received function ID from Kafka", function_id=FUNCTION_ID)
             execute_function()
-            print(f"Received function ID from Kafka: {FUNCTION_ID}")

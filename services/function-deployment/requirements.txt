@@ -1,3 +1,6 @@
 asyncpg
 kafka-python
 kubernetes
+pyyaml
+prometheus_client
+structlog

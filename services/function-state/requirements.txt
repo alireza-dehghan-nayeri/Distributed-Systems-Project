@@ -1,3 +1,5 @@
 asyncpg
 fastapi
 uvicorn
+prometheus_client
+structlog

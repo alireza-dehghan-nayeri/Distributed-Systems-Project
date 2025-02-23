@@ -3,3 +3,5 @@ fastapi
 kafka-python
 pydantic
 uvicorn
+prometheus_client
+structlog
