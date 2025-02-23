@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: function-deployment-role
+  namespace: default  # Match the namespace where the function will deploy resources
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["create", "get", "list", "watch", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["services", "configmaps", "secrets"]
+    verbs: ["create", "get", "list", "watch"]
+  - apiGroups: ["monitoring.coreos.com"]  # For ServiceMonitor
+    resources: ["servicemonitors"]
+    verbs: ["create", "get", "list", "watch"]
