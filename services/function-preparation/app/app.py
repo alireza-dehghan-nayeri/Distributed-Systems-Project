@@ -75,11 +75,11 @@ def generate_kubernetes_deployment_yaml(function_id):
                 - containerPort: 8000
               resources:
                 requests:
-                  memory: "512Mi"
-                  cpu: "250m"
+                  memory: "128Mi"
+                  cpu: "100m"
                 limits:
-                  memory: "1Gi"
-                  cpu: "500m"
+                  memory: "256Mi"
+                  cpu: "250m"
     """
 
     return deployment_yaml
