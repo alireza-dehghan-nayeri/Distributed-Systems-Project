@@ -1,6 +1,6 @@
 fastapi
 pydantic
-psycopg2
+psycopg2-binary
 kafka-python
 uvicorn
 prometheus_client
