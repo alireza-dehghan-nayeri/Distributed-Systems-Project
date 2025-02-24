@@ -2,23 +2,24 @@ replicaCount: 1
 
 resources:
   requests:
-    memory: 512Mi
-    cpu: 250m
+    memory: 256Mi   # Lower memory usage
+    cpu: 100m       # Minimal CPU usage
   limits:
-    memory: 1Gi
-    cpu: 500m
+    memory: 512Mi   # Prevent excessive memory usage
+    cpu: 250m       # Cap CPU consumption
 
 persistence:
-  size: 5Gi
+  size: 1Gi        # Minimal disk usage for local testing
 
 service:
-  type: ClusterIP
+  type: ClusterIP  # No need for external access
 
 auth:
-  clientProtocol: plaintext
+  clientProtocol: plaintext  # No security needed for local testing
 
 kraft:
   enabled: true
+  clusterId: "test-cluster"  # Simple fixed cluster ID for local use
 
 zookeeper:
-  enabled: false
+  enabled: false  # Disable ZooKeeper since KRaft mode is enabled
