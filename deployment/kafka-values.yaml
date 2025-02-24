@@ -15,7 +15,18 @@ service:
   type: ClusterIP  # No need for external access
 
 auth:
-  clientProtocol: plaintext  # No security needed for local testing
+  enabled: false
+  clientProtocol: plaintext
+
+listeners:
+  client:
+    protocol: PLAINTEXT
+  controller:
+    protocol: PLAINTEXT
+  interbroker:
+    protocol: PLAINTEXT
+  external:
+    protocol: PLAINTEXT
 
 kraft:
   enabled: true
@@ -23,3 +34,19 @@ kraft:
 
 zookeeper:
   enabled: false  # Disable ZooKeeper since KRaft mode is enabled
+
+provisioning:
+  enabled: true  # ✅ Enables automatic topic creation on install
+  topics:
+    - name: test       # 🔹 Name of the Kafka topic
+      partitions: 1            # 🔹 Number of partitions
+      replicationFactor: 1     # 🔹 Replication factor
+    - name: function-preparation
+      partitions: 1
+      replicationFactor: 1
+    - name: function-deployment
+      partitions: 1
+      replicationFactor: 1
+    - name: function-execution
+      partitions: 1
+      replicationFactor: 1
