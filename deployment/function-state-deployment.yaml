@@ -17,7 +17,7 @@ spec:
       containers:
         - name: function-state
           image: alirezadehghannayeri/function-state:latest  # Replace with your Docker image name
-          imagePullPolicy: IfNotPresent  # Use "IfNotPresent" if pulling from a registry
+          imagePullPolicy: Always  # Use "IfNotPresent" if pulling from a registry
           env:
             - name: DATABASE_URL
               valueFrom:
