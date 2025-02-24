@@ -9,8 +9,8 @@ from kubernetes import client, config
 from prometheus_client import Counter, Histogram
 
 # Environment Variables
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://your_user:your_password@cockroachdb-service:26257/your_database")
-KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka-service:9092")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://root@cockroachdb-public:26257/kubelesspy_database")
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka:9092")
 KAFKA_CONSUMER_TOPIC = os.getenv("KAFKA_CONSUMER_TOPIC", "function-deployment")
 KAFKA_PRODUCER_TOPIC = os.getenv("KAFKA_PRODUCER_TOPIC", "function-execution")
 KUBE_NAMESPACE = os.getenv("KUBE_NAMESPACE", "default")

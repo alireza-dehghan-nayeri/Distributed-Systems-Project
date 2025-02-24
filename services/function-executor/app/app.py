@@ -9,8 +9,8 @@ from kafka import KafkaConsumer
 from prometheus_client import Counter, Histogram
 
 # Environment Variables
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://your_user:your_password@cockroachdb-service:26257/your_database")
-KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka-service:9092")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://root@cockroachdb-public:26257/kubelesspy_database")
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka:9092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "function-execution")
 FUNCTION_ID = os.getenv("FUNCTION_ID")
 

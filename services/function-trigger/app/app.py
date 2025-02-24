@@ -14,8 +14,8 @@ from starlette.responses import Response
 app = FastAPI()
 
 # Environment Variables
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://your_user:your_password@cockroachdb-service:26257/your_database")
-KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka-service:9092")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://root@cockroachdb-public:26257/kubelesspy_database")
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka:9092")
 KAFKA_DEPLOYMENT_TOPIC = os.getenv("KAFKA_DEPLOYMENT_TOPIC", "function-deployment")
 KAFKA_EXECUTION_TOPIC = os.getenv("KAFKA_EXECUTION_TOPIC", "function-execution")
 
