@@ -40,6 +40,24 @@ structlog.configure(
 )
 logger = structlog.get_logger()
 
+def update_function_state(function_id, new_state):
+    """Update function state in CockroachDB synchronously."""
+    logger.info("Updating function state", function_id=function_id, new_state=new_state)
+
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE functions SET state = %s WHERE id = %s", (new_state, function_id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        logger.info("Function state updated", function_id=function_id, new_state=new_state)
+
+    except Exception as e:
+        DB_ERRORS.inc()
+        logger.error("Database error updating function state", function_id=function_id, error=str(e))
+
+
 def fetch_function_code():
     """Fetch function code and dependencies from CockroachDB synchronously."""
     logger.info("Fetching function code", function_id=FUNCTION_ID)
@@ -124,6 +142,8 @@ def execute_function():
 def kafka_listener():
     """Listen to Kafka and process functions."""
     logger.info("Function Execution Service is running...")
+
+    update_function_state(FUNCTION_ID,"deployed")
 
     for msg in consumer:
         if msg.value["id"] == FUNCTION_ID:
