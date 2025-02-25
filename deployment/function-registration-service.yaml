@@ -4,6 +4,7 @@ metadata:
   name: function-registration-service
   labels:
     app: function-registration
+    monitoring: enabled
 spec:
   selector:
     app: function-registration

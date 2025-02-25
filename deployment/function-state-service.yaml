@@ -4,6 +4,7 @@ metadata:
   name: function-state-service
   labels:
     app: function-state
+    monitoring: enabled
 spec:
   selector:
     app: function-state

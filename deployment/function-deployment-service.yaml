@@ -4,6 +4,7 @@ metadata:
   name: function-deployment-service
   labels:
     app: function-deployment
+    monitoring: enabled
 spec:
   selector:
     app: function-deployment

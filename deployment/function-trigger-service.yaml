@@ -4,6 +4,7 @@ metadata:
   name: function-trigger-service
   labels:
     app: function-trigger
+    monitoring: enabled
 spec:
   selector:
     app: function-trigger

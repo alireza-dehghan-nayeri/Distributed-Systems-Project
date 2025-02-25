@@ -4,6 +4,7 @@ metadata:
   name: function-preparation-service
   labels:
     app: function-preparation
+    monitoring: enabled
 spec:
   selector:
     app: function-preparation
