@@ -97,22 +97,6 @@ def check_function_status(function_id=None, function_name=None):
         logger.error("Database error", error=str(e))
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-def update_function_state(function_id, new_state):
-    """Update the function's state in CockroachDB."""
-    logger.info("Updating function state", function_id=function_id, new_state=new_state)
-
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("UPDATE functions SET state = %s WHERE id = %s", (new_state, function_id))
-        conn.commit()
-        cur.close()
-        conn.close()
-    except Exception as e:
-        DB_ERRORS.inc()
-        logger.error("Database error while updating function state", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
 @app.post("/trigger/")
 def trigger_function(payload: FunctionTriggerRequest):
     """Trigger function deployment if it is ready."""
