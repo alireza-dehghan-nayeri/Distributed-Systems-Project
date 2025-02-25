@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS functions (
 -- Create Indexes for Performance
 CREATE INDEX IF NOT EXISTS idx_functions_state ON functions(state);
 
--- Create a Changefeed for WebSocket notifications (CockroachDB Changefeed)
+-- Create a Changefeed
 CREATE CHANGEFEED FOR functions
-    INTO 'kafka://kafka-service:9092'
+    INTO 'kafka://kafka.default.svc.cluster.local:9092?topic_prefix=changefeed-'
     WITH updated, resolved;

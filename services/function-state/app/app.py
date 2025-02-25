@@ -1,27 +1,25 @@
-import asyncpg
 import asyncio
 import json
 import os
 import structlog
+import threading
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from typing import Dict, List
+from kafka import KafkaConsumer
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 from starlette.responses import Response
 
-# Environment Variables
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://root@cockroachdb-public:26257/kubelesspy_database")
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka:9092")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "changefeed-functions")
 
 app = FastAPI()
 
 # Store active WebSocket connections
-active_connections: Dict[str, List[WebSocket]] = {}
+active_connections = set()
 
 # Prometheus Metrics
 WEBSOCKET_CONNECTIONS = Counter("websocket_connections_total", "Total WebSocket connections")
-DB_ERRORS = Counter("database_errors_total", "Total database errors")
-STATE_UPDATES_RECEIVED = Counter("state_updates_received_total", "Total state updates received")
+FUNCTION_UPDATES_RECEIVED = Counter("function_updates_received_total", "Total function updates received")
 WS_MESSAGES_SENT = Counter("websocket_messages_sent_total", "Total messages sent over WebSocket")
-DB_QUERY_TIME = Histogram("db_query_duration_seconds", "Time taken for database queries")
 
 # JSON Logger (Loki Compatible)
 structlog.configure(
@@ -32,65 +30,65 @@ structlog.configure(
 )
 logger = structlog.get_logger()
 
-async def get_db():
-    """Get an asynchronous database connection."""
-    try:
-        return await asyncpg.connect(DATABASE_URL)
-    except Exception as e:
-        DB_ERRORS.inc()
-        logger.error("Database connection error", error=str(e))
-        return None
+def kafka_consumer():
+    """Blocking Kafka consumer runs in a separate thread."""
+    consumer = KafkaConsumer(
+        KAFKA_TOPIC,
+        bootstrap_servers=KAFKA_BROKER,
+        value_deserializer=lambda m: json.loads(m.decode("utf-8")),
+        auto_offset_reset="earliest",
+        enable_auto_commit=True
+    )
 
-@app.post("/changefeed")
-async def receive_changefeed_update(payload: dict):
-    """
-    Receives updates from CockroachDB Change Feed.
-    Example payload:
-    {
-        "key": "function_id",
-        "value": {
-            "state": "Running"
-        }
-    }
-    """
-    function_id = payload.get("key")
-    state = payload.get("value", {}).get("state")
+    logger.info("Kafka consumer started, listening for function updates...")
 
-    if not function_id or not state:
-        logger.warning("Invalid payload received", payload=payload)
-        return {"error": "Invalid payload"}
+    for message in consumer:
+        payload = message.value
+        function_id = payload.get("after", {}).get("id")
 
-    STATE_UPDATES_RECEIVED.inc()
-    logger.info("Function state updated", function_id=function_id, state=state)
+        if not function_id:
+            logger.warning("Invalid payload received from Kafka", payload=payload)
+            continue
 
-    # Notify all connected WebSocket clients
-    if function_id in active_connections:
-        for ws in active_connections[function_id]:
-            await ws.send_text(json.dumps({"function_id": function_id, "state": state}))
-            WS_MESSAGES_SENT.inc()
+        FUNCTION_UPDATES_RECEIVED.inc()
+        logger.info("Function updated via Kafka", function_id=function_id)
 
-    return {"message": "Update received"}
+        message_json = json.dumps(payload)
 
-@app.websocket("/ws/{function_id}")
-async def websocket_endpoint(websocket: WebSocket, function_id: str):
+        # Send the update to all connected WebSocket clients
+        disconnected_clients = []
+        for ws in active_connections:
+            try:
+                asyncio.run(ws.send_text(message_json))
+                WS_MESSAGES_SENT.inc()
+            except WebSocketDisconnect:
+                disconnected_clients.append(ws)
+
+        # Remove disconnected clients
+        for ws in disconnected_clients:
+            active_connections.remove(ws)
+
+@app.on_event("startup")
+async def start_kafka_consumer():
+    """Run the Kafka consumer in a background thread."""
+    thread = threading.Thread(target=kafka_consumer, daemon=True)
+    thread.start()
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for clients to subscribe to function state updates."""
     await websocket.accept()
     WEBSOCKET_CONNECTIONS.inc()
-    logger.info("Client connected", function_id=function_id)
+    logger.info("Client connected")
 
-    if function_id not in active_connections:
-        active_connections[function_id] = []
-
-    active_connections[function_id].append(websocket)
+    active_connections.add(websocket)
 
     try:
         while True:
             await asyncio.sleep(5)  # Keep the connection alive
     except WebSocketDisconnect:
-        logger.info("Client disconnected", function_id=function_id)
-        active_connections[function_id].remove(websocket)
-        if not active_connections[function_id]:
-            del active_connections[function_id]
+        logger.info("Client disconnected")
+        active_connections.remove(websocket)
 
 @app.get("/")
 async def health_check():

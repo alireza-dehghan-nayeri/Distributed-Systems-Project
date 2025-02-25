@@ -50,3 +50,6 @@ provisioning:
     - name: function-execution
       partitions: 1
       replicationFactor: 1
+    - name: changefeed-functions
+      partitions: 1
+      replicationFactor: 1

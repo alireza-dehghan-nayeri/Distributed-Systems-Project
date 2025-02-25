@@ -1,5 +1,8 @@
-asyncpg
 fastapi
 uvicorn
 prometheus_client
 structlog
+starlette
+uvicorn[standard]
+websockets
+kafka-python
