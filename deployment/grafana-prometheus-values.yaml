@@ -1,38 +1,56 @@
-# Reduce Prometheus resource usage for local development
-prometheus:
-  prometheusSpec:
-    retention: "1h"  # Store only 6 hours of data to save memory
-    scrapeInterval: "15s"  # Scrape metrics every 15 seconds
-    resources:
-      requests:
-        memory: "512Mi"
-        cpu: "250m"
-      limits:
-        memory: "1Gi"
-        cpu: "500m"
-  persistence:
-    enabled: false
-
-# Reduce Alertmanager resource usage (not needed for local dev)
+# Disable components not needed for local development
 alertmanager:
   enabled: false
 
-# Reduce Grafana resource usage
+# Enable Grafana with minimal resources
 grafana:
+  enabled: true
   resources:
     requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
       memory: "256Mi"
       cpu: "100m"
-    limits:
-      memory: "512Mi"
-      cpu: "250m"
-  adminPassword: "admin"  # Default login is admin/admin
-  service:
-    type: NodePort  # Expose Grafana using a NodePort
   persistence:
-    enabled: false
+    enabled: false  # Disable persistence to save disk space
+  adminPassword: "admin"  # Default login (change for security)
+  service:
+    type: NodePort  # Expose Grafana externally
+  sidecar:
+    datasources:
+      enabled: true  # Automatically detects Prometheus as a datasource
 
-# Expose Prometheus via NodePort for local access
+# Minimize Prometheus resource usage
+prometheus:
+  enabled: true
+  prometheusSpec:
+    retention: "30m"  # Retain data for 30 minutes
+    scrapeInterval: "30s"  # Scrape metrics every 30 seconds
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+  persistence:
+    enabled: false  # Disable persistence to save disk space
+
+# Minimize Prometheus Operator resource usage
 prometheusOperator:
-  admissionWebhooks:
-    enabled: false
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "100m"
+
+# Disable nodeExporter (it's separate from Prometheus)
+nodeExporter:
+  enabled: false
+
+# Disable kube-state-metrics to save resources
+kubeStateMetrics:
+  enabled: false
