@@ -154,7 +154,7 @@ def process_function(function_id):
         # Deploy Kubernetes Deployment
         if deploy_kubernetes_deployment(deployment_yaml):
             FUNCTION_DEPLOYMENTS.inc()
-            update_function_state(function_id, "deployed")
+            update_function_state(function_id, "deployment-in-progress")
 
             try:
                 producer.send(KAFKA_PRODUCER_TOPIC, {"id": function_id})
