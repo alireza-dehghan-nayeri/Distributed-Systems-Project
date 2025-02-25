@@ -18,7 +18,8 @@ FUNCTION_ID = os.getenv("FUNCTION_ID")
 consumer = KafkaConsumer(
     KAFKA_TOPIC,
     bootstrap_servers=KAFKA_BROKER,
-    value_deserializer=lambda x: json.loads(x.decode("utf-8"))
+    value_deserializer=lambda x: json.loads(x.decode("utf-8")),
+    auto_offset_reset="earliest"
 )
 
 def get_db():
