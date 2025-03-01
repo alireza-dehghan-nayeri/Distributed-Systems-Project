@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  nginx.conf: |
+    events {
+      worker_connections 1024;
+    }
+
+    http {
+      include       mime.types;
+      default_type  application/octet-stream;
+      sendfile        on;
+      keepalive_timeout  65;
+
+      server {
+        listen 80;
+
+        # CockroachDB UI
+        location /cockroachdb/ {
+          proxy_pass http://cockroachdb-public.default.svc.cluster.local:8080/;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+
+        # Grafana
+        location /grafana/ {
+          proxy_pass http://monitoring-grafana.default.svc.cluster.local:80/;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+
+        # Prometheus
+        location /prometheus/ {
+          proxy_pass http://monitoring-kube-prometheus-prometheus.default.svc.cluster.local:9090/;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+
+        # Function Deployment Service
+        location /function-deployment/ {
+          proxy_pass http://function-deployment-service.default.svc.cluster.local:8000/;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+
+        # Function Preparation Service
+        location /function-preparation/ {
+          proxy_pass http://function-preparation-service.default.svc.cluster.local:8000/;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+
+        # Function Registration Service
+        location /function-registration/ {
+          proxy_pass http://function-registration-service.default.svc.cluster.local:8000/;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+
+        # Function State Service (WebSocket + HTTP)
+        location /function-state/ {
+          proxy_pass http://function-state-service.default.svc.cluster.local:8000/;
+          proxy_http_version 1.1;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection "Upgrade";
+          proxy_read_timeout 86400;
+        }
+
+        # Function Trigger Service
+        location /function-trigger/ {
+          proxy_pass http://function-trigger-service.default.svc.cluster.local:8000/;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+      }
+    }

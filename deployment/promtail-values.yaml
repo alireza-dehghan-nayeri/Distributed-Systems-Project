@@ -1,12 +1,3 @@
-# Minimal resource allocation for development
-resources:
-  requests:
-    cpu: "50m"
-    memory: "64Mi"
-  limits:
-    cpu: "100m"
-    memory: "128Mi"
-
 # Promtail configuration for Kubernetes pod scraping
 config:
   logLevel: info

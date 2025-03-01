@@ -1,18 +1,28 @@
-replicaCount: 1
-
-resources:
-  requests:
-    memory: 256Mi   # Lower memory usage
-    cpu: 100m       # Minimal CPU usage
-  limits:
-    memory: 512Mi   # Prevent excessive memory usage
-    cpu: 250m       # Cap CPU consumption
+replicaCount: 3
 
 persistence:
-  size: 1Gi        # Minimal disk usage for local testing
+  enabled: false
+  dataLogDir:
+    enabled: false
+  dataDir:
+    enabled: false
+
+volumes:
+  logs:
+    emptyDir: {}
+  data:
+    emptyDir: {}
 
 service:
-  type: ClusterIP  # No need for external access
+  type: ClusterIP
+  headless:
+    enabled: true
+    broker:
+      annotations: { }
+      labels: { }
+    controller:
+      annotations: { }
+      labels: { }
 
 auth:
   enabled: false
@@ -30,26 +40,49 @@ listeners:
 
 kraft:
   enabled: true
-  clusterId: "test-cluster"  # Simple fixed cluster ID for local use
+  clusterId: "dev-kafka-cluster"
+  metadataQuorum: 3
 
 zookeeper:
-  enabled: false  # Disable ZooKeeper since KRaft mode is enabled
+  enabled: false
 
 provisioning:
-  enabled: true  # ✅ Enables automatic topic creation on install
+  enabled: true
   topics:
-    - name: test       # 🔹 Name of the Kafka topic
-      partitions: 1            # 🔹 Number of partitions
-      replicationFactor: 1     # 🔹 Replication factor
     - name: function-preparation
-      partitions: 1
-      replicationFactor: 1
+      partitions: 3
+      replicationFactor: 3
     - name: function-deployment
-      partitions: 1
-      replicationFactor: 1
+      partitions: 3
+      replicationFactor: 3
     - name: function-execution
-      partitions: 1
-      replicationFactor: 1
+      partitions: 3
+      replicationFactor: 3
     - name: changefeed-functions
-      partitions: 1
-      replicationFactor: 1
+      partitions: 3
+      replicationFactor: 3
+
+volumePermissions:
+  enabled: false
+
+controller:
+  persistence:
+    enabled: false
+  logPersistence:
+    enabled: false
+  volumes:
+    data:
+      emptyDir: {}
+    logs:
+      emptyDir: {}
+
+broker:
+  persistence:
+    enabled: false
+  logPersistence:
+    enabled: false
+  volumes:
+    data:
+      emptyDir: {}
+    logs:
+      emptyDir: {}

@@ -1,4 +1,9 @@
 loki:
+  securityContext:
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+    fsGroupChangePolicy: "Always"
   commonConfig:
     replication_factor: 1
   schemaConfig:
@@ -13,7 +18,6 @@ loki:
   pattern_ingester:
     enabled: true
   limits_config:
-    retention_period: 1h
     allow_structured_metadata: true
     volume_enabled: true
   ruler:
@@ -21,11 +25,43 @@ loki:
 
 minio:
   enabled: true
+  persistence:
+    enabled: false  # Disable default PVC creation
+  extraVolumes:
+    - name: minio-storage
+      hostPath:
+        path: /mnt/data/minio  # Change to a directory on your node
+        type: DirectoryOrCreate
+
+  extraVolumeMounts:
+    - name: minio-storage
+      mountPath: /data
+
+  securityContext:
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+    fsGroupChangePolicy: "Always"
 
 deploymentMode: SingleBinary
 
 singleBinary:
   replicas: 1
+  persistence:
+    enabled: false  # Disable default PVC creation
+  extraVolumes:
+    - name: loki-storage
+      hostPath:
+        path: /mnt/data/loki  # Directory on the host node
+        type: DirectoryOrCreate
+  extraVolumeMounts:
+    - name: loki-storage
+      mountPath: /var/loki  # Mount path within the container
+  securityContext:
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+    fsGroupChangePolicy: "Always"
 
 # Zero out replica counts of other deployment modes
 backend:
@@ -53,11 +89,3 @@ bloomCompactor:
   replicas: 0
 bloomGateway:
   replicas: 0
-
-resources:
-  requests:
-    cpu: "50m"
-    memory: "64Mi"
-  limits:
-    cpu: "100m"
-    memory: "128Mi"

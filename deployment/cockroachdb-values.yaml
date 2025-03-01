@@ -1,22 +1,12 @@
 statefulset:
-  replicas: 1  # Single-node deployment for local development
-  resources:
-    requests:
-      cpu: "100m"       # Reduce CPU request
-      memory: "256Mi"   # Reduce memory request
-    limits:
-      cpu: "250m"       # Reduce CPU limit
-      memory: "512Mi"   # Reduce memory limit
-  nodeSelector: {}  # Keep empty for local development
-  affinity: {}  # No specific affinity rules
-  tolerations: []  # No tolerations required for a single-node setup
+  replicas: 3
+
+insecure: true
 
 # Minimal storage size for local development
 storage:
   persistentVolume:
-    enabled: true
-    size: 1Gi  # Reduce storage to 1Gi (less disk usage)
-    storageClass: ""  # Empty means default storage class will be used
+    enabled: false
 
 # Expose services for local access
 service:
@@ -28,12 +18,6 @@ service:
   internal:
     type: ClusterIP  # Internal-only service for cluster communication
 
-# Reduce memory allocation for SQL execution & caching
-conf:
-  cache: "128Mi"           # Reduce cache size to save memory
-  max-sql-memory: "128Mi"  # Reduce SQL memory usage
-  locality: ""  # No specific locality required for a single-node setup
-
 # Disable TLS for local development (unsafe for production)
 tls:
   enabled: false
@@ -43,5 +27,5 @@ tls:
 # Disable Admin UI authentication for local testing
 adminui:
   service:
-    type: NodePort  # Ensure Admin UI is accessible
+    type: NodePort
   authentication: false

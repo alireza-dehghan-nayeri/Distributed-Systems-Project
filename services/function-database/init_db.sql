@@ -22,4 +22,4 @@ CREATE INDEX IF NOT EXISTS idx_functions_state ON functions(state);
 -- Create a Changefeed
 CREATE CHANGEFEED FOR functions
     INTO 'kafka://kafka.default.svc.cluster.local:9092?topic_prefix=changefeed-'
-    WITH updated, resolved;
+    WITH updated;

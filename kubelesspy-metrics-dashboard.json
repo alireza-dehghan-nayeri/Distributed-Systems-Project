@@ -1,0 +1,130 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": null,
+    "title": "Kubelesspy Metrics",
+    "description": "Real-time monitoring of function deployment, processing, HTTP requests, WebSocket activity, and Kafka messages",
+    "schemaVersion": 16,
+    "version": 0,
+    "time": { "from": "now-1h", "to": "now" },
+    "refresh": "5m",
+    "panels": [
+      {
+        "title": "Kafka Messages Processed (Per Service)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "increase(kafka_messages_processed_total[5m])",
+            "legendFormat": "{{job}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 4 }
+      },
+      {
+        "title": "Database Errors (Per Service)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "increase(database_errors_total[5m])",
+            "legendFormat": "{{job}}",
+            "refId": "B"
+          }
+        ],
+        "gridPos": { "x": 0, "y": 4, "w": 12, "h": 4 }
+      },
+      {
+        "title": "Function Deployments (Total)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "increase(function_deployments_total[5m])",
+            "legendFormat": "Total Deployments",
+            "refId": "C"
+          }
+        ],
+        "gridPos": { "x": 0, "y": 8, "w": 6, "h": 4 }
+      },
+      {
+        "title": "Function Processing Time (P50, P90, P95)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(function_processing_duration_seconds_bucket[5m]))",
+            "legendFormat": "P50",
+            "refId": "D1"
+          },
+          {
+            "expr": "histogram_quantile(0.90, rate(function_processing_duration_seconds_bucket[5m]))",
+            "legendFormat": "P90",
+            "refId": "D2"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(function_processing_duration_seconds_bucket[5m]))",
+            "legendFormat": "P95",
+            "refId": "D3"
+          }
+        ],
+        "gridPos": { "x": 6, "y": 8, "w": 6, "h": 4 }
+      },
+      {
+        "title": "HTTP Requests (Per Service)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "increase(http_requests_total[5m]) by (method, endpoint, job)",
+            "legendFormat": "{{method}} {{endpoint}} ({{job}})",
+            "refId": "E"
+          }
+        ],
+        "gridPos": { "x": 0, "y": 12, "w": 12, "h": 4 }
+      },
+      {
+        "title": "HTTP Request Duration (P50, P90, P95)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "P50",
+            "refId": "F1"
+          },
+          {
+            "expr": "histogram_quantile(0.90, rate(http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "P90",
+            "refId": "F2"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "P95",
+            "refId": "F3"
+          }
+        ],
+        "gridPos": { "x": 0, "y": 16, "w": 12, "h": 4 }
+      },
+      {
+        "title": "WebSocket Connections",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "increase(websocket_connections_total[5m])",
+            "legendFormat": "WebSocket Connections",
+            "refId": "G"
+          }
+        ],
+        "gridPos": { "x": 0, "y": 20, "w": 6, "h": 4 }
+      },
+      {
+        "title": "WebSocket Messages Sent",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "increase(websocket_messages_sent_total[5m])",
+            "legendFormat": "Messages Sent",
+            "refId": "H"
+          }
+        ],
+        "gridPos": { "x": 6, "y": 20, "w": 6, "h": 4 }
+      }
+    ]
+  }
+}

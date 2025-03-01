@@ -5,13 +5,6 @@ alertmanager:
 # Enable Grafana with minimal resources
 grafana:
   enabled: true
-  resources:
-    requests:
-      memory: "128Mi"
-      cpu: "50m"
-    limits:
-      memory: "256Mi"
-      cpu: "100m"
   persistence:
     enabled: false  # Disable persistence to save disk space
   adminPassword: "admin"  # Default login (change for security)
@@ -23,34 +16,15 @@ grafana:
 
 # Minimize Prometheus resource usage
 prometheus:
+  service:
+    type: NodePort
   enabled: true
   prometheusSpec:
     retention: "30m"  # Retain data for 30 minutes
-    scrapeInterval: "30s"  # Scrape metrics every 30 seconds
-    resources:
-      requests:
-        memory: "256Mi"
-        cpu: "100m"
-      limits:
-        memory: "512Mi"
-        cpu: "250m"
   persistence:
     enabled: false  # Disable persistence to save disk space
-
-# Minimize Prometheus Operator resource usage
-prometheusOperator:
-  resources:
-    requests:
-      memory: "128Mi"
-      cpu: "50m"
-    limits:
-      memory: "256Mi"
-      cpu: "100m"
 
 # Disable nodeExporter (it's separate from Prometheus)
 nodeExporter:
   enabled: false
 
-# Disable kube-state-metrics to save resources
-kubeStateMetrics:
-  enabled: false
