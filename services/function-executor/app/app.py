@@ -5,8 +5,10 @@ import time
 import psycopg2
 import importlib.util
 import structlog
+import threading
 from kafka import KafkaConsumer
 from prometheus_client import Counter, Histogram
+from kubernetes import client, config
 
 # Environment Variables
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://root@cockroachdb-public:26257/kubelesspy_database")
@@ -140,8 +142,56 @@ def execute_function():
     else:
         logger.error("Error: handler() function not found!", function_id=FUNCTION_ID)
 
+class EventTimer:
+    def __init__(self, timeout=120):  # 120 seconds (2 minutes)
+        self.timeout = timeout
+        self.timer = None
+        self.lock = threading.Lock()
+
+    def start_timer(self):
+        """Start a timer safely, canceling any previous one."""
+        with self.lock:
+            if self.timer:
+                self.timer.cancel()  # Cancel previous timer
+            self.timer = threading.Timer(self.timeout, self.cleanup)
+            self.timer.start()
+            print("Timer started or reset.")
+
+    def cleanup(self):
+        """Function to execute when the timer expires."""
+        with self.lock:
+            print("Timer reached 2 minutes! Executing task...")
+            # Add your logic here (e.g., processing, alerting, etc.)
+            update_function_state(FUNCTION_ID,"deployable")
+            try:
+                # Load Kubernetes config (detects if running inside Kubernetes)
+                try:
+                    config.load_incluster_config()  # Use in-cluster config if running inside Kubernetes
+                except config.ConfigException:
+                    config.load_kube_config()  # Use kubeconfig if running locally
+
+                api = client.AppsV1Api()  # Kubernetes API for Deployments
+                api.delete_namespaced_deployment(
+                    name=f"executor-{FUNCTION_ID[:8]}",
+                    namespace="default",
+                    body=client.V1DeleteOptions(grace_period_seconds=30)
+                )
+
+            except Exception as e:
+                logger.error("Kubernetes deployment deletion failed", error=str(e))
+
+    def stop_timer(self):
+        """Stop the timer if needed."""
+        with self.lock:
+            if self.timer:
+                self.timer.cancel()
+                self.timer = None
+                print("Timer stopped.")
+
+
 def kafka_listener():
     """Listen to Kafka and process functions."""
+    event_timer = EventTimer()
     logger.info("Function Execution Service is running...")
 
     update_function_state(FUNCTION_ID,"deployed")
@@ -151,3 +201,4 @@ def kafka_listener():
             KAFKA_MESSAGES_PROCESSED.inc()
             logger.info("Received function ID from Kafka", function_id=FUNCTION_ID)
             execute_function()
+            event_timer.start_timer()

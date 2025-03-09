@@ -61,6 +61,7 @@ def generate_kubernetes_deployment_yaml(function_id):
           labels:
             app: {deployment_name}
         spec:
+          serviceAccountName: function-deployment-sa
           containers:
             - name: function-executor 
               image: alirezadehghannayeri/function-executor:latest
