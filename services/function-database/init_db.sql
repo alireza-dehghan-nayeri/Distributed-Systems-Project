@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS functions (
 -- Create Indexes for Performance
 CREATE INDEX IF NOT EXISTS idx_functions_state ON functions(state);
 
+
+SET CLUSTER SETTING kv.rangefeed.enabled = true;
+
 -- Create a Changefeed
 CREATE CHANGEFEED FOR functions
     INTO 'kafka://kafka.default.svc.cluster.local:9092?topic_prefix=changefeed-'
