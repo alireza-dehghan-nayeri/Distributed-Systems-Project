@@ -5,4 +5,4 @@ structlog
 starlette
 uvicorn[standard]
 websockets
-kafka-python
+aiokafka

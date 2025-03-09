@@ -2,19 +2,17 @@ import asyncio
 import json
 import os
 import structlog
-import threading
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from kafka import KafkaConsumer
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from aiokafka import AIOKafkaConsumer
+from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 from starlette.responses import Response
 
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka:9092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "changefeed-functions")
 
 app = FastAPI()
-
-# Store active WebSocket connections
 active_connections = set()
+message_queue = asyncio.Queue(maxsize=1000)  # Prevent memory overflow
 
 # Prometheus Metrics
 WEBSOCKET_CONNECTIONS = Counter("websocket_connections_total", "Total WebSocket connections")
@@ -30,53 +28,55 @@ structlog.configure(
 )
 logger = structlog.get_logger()
 
-def kafka_consumer():
-    """Blocking Kafka consumer runs in a separate thread."""
-    consumer = KafkaConsumer(
+async def consume_kafka():
+    """Async Kafka consumer that pushes messages to an asyncio.Queue."""
+    consumer = AIOKafkaConsumer(
         KAFKA_TOPIC,
         bootstrap_servers=KAFKA_BROKER,
         value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-        auto_offset_reset="earliest",
+        auto_offset_reset="latest",
         enable_auto_commit=True
     )
 
-    logger.info("Kafka consumer started, listening for function updates...")
+    await consumer.start()
+    logger.info("Async Kafka consumer started")
 
-    for message in consumer:
-        payload = message.value
-        function_id = payload.get("after", {}).get("id")
+    try:
+        async for message in consumer:
+            payload = message.value
+            FUNCTION_UPDATES_RECEIVED.inc()
+            await message_queue.put(payload)
+    except Exception as e:
+        logger.error("Kafka consumer error", error=str(e))
+    finally:
+        await consumer.stop()
 
-        if not function_id:
-            logger.warning("Invalid payload received from Kafka", payload=payload)
-            continue
-
-        FUNCTION_UPDATES_RECEIVED.inc()
-        logger.info("Function updated via Kafka", function_id=function_id)
-
+async def process_kafka_messages():
+    """Send Kafka messages to all connected WebSockets."""
+    while True:
+        payload = await message_queue.get()
         message_json = json.dumps(payload)
 
-        # Send the update to all connected WebSocket clients
         disconnected_clients = []
-        for ws in active_connections:
+        for ws in list(active_connections):
             try:
-                asyncio.run(ws.send_text(message_json))
+                await ws.send_text(message_json)
                 WS_MESSAGES_SENT.inc()
             except WebSocketDisconnect:
                 disconnected_clients.append(ws)
 
-        # Remove disconnected clients
         for ws in disconnected_clients:
-            active_connections.remove(ws)
+            active_connections.discard(ws)
 
 @app.on_event("startup")
-async def start_kafka_consumer():
-    """Run the Kafka consumer in a background thread."""
-    thread = threading.Thread(target=kafka_consumer, daemon=True)
-    thread.start()
+async def start_services():
+    """Start Kafka consumer and WebSocket message processor."""
+    asyncio.create_task(consume_kafka())  # Start async Kafka consumer
+    asyncio.create_task(process_kafka_messages())  # Start WebSocket message handler
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for clients to subscribe to function state updates."""
+    """WebSocket endpoint for clients to subscribe to function updates."""
     await websocket.accept()
     WEBSOCKET_CONNECTIONS.inc()
     logger.info("Client connected")
@@ -85,10 +85,10 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         while True:
-            await asyncio.sleep(5)  # Keep the connection alive
+            await asyncio.sleep(5)  # Keep connection alive
     except WebSocketDisconnect:
         logger.info("Client disconnected")
-        active_connections.remove(websocket)
+        active_connections.discard(websocket)
 
 @app.get("/")
 async def health_check():
